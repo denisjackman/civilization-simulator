@@ -24,58 +24,69 @@ SOFTWARE.
 """
 import os
 import sys
-
-import pygame
-import pygame.gfxdraw
 import math
-import noise
-
 import random
 from datetime import datetime
-random.seed(datetime.now())
+import pygame
+import pygame.gfxdraw
+import noise
 
+random.seed(datetime.now())
 rand_val = random.randint(0, 100000)
 
 SQRT_3 = 1.732
 WINDOW_BOUND = [1366, 700]
-GAME_BOUND = [round(WINDOW_BOUND[0]*1/64), round(WINDOW_BOUND[1]*1/64), round(WINDOW_BOUND[0]*31/32), round(WINDOW_BOUND[1]*31/32)]
-HEX_WIDTH = 12 #12
-DIMENSIONS = [64, 32] #64, 32
-CONTINENT_ROUGHNESS = 0.9 #0.9
+GAME_BOUND = [round(WINDOW_BOUND[0]*1/64),
+              round(WINDOW_BOUND[1]*1/64),
+              round(WINDOW_BOUND[0]*31/32),
+              round(WINDOW_BOUND[1]*31/32)]
+HEX_WIDTH = 12  # 12
+DIMENSIONS = [64, 32]  # 64, 32
+CONTINENT_ROUGHNESS = 0.9  # 0.9
 OCEAN_WORLD = 5
-INITIAL_EMPIRES = 16 #16
+INITIAL_EMPIRES = 16  # 16
 PEACE_DURATION = 15
 ECONOMIC_ADVANTAGE = 2
 ENABLE_MULTITHREADING = True
 
 NUM_CORES = 1
 
+ERROR_MESSAGE_001 = "Game Error:" + \
+                    " Game bounding box is bigger than window bounding box"
+
 if ENABLE_MULTITHREADING:
-	if sys.platform.startswith('linux'):
-		stream = os.popen('grep -c ^processor /proc/cpuinfo')
-	elif sys.platform.startswith('win'):
-		stream = os.popen('echo %NUMBER_OF_PROCESSORS%')
-	elif sys.platform.startswith('cygwin'):
-		stream = os.popen('echo %NUMBER_OF_PROCESSORS%')
-	elif sys.platform.startswith('msys'):
-		stream = os.popen('echo %NUMBER_OF_PROCESSORS%')
-	elif sys.platform.startswith('darwin'):
-		stream = os.popen('sysctl -n hw.ncpu')
+    if sys.platform.startswith('linux'):
+        stream = os.popen('grep -c ^processor /proc/cpuinfo')
+    elif sys.platform.startswith('win'):
+        stream = os.popen('echo %NUMBER_OF_PROCESSORS%')
+    elif sys.platform.startswith('cygwin'):
+        stream = os.popen('echo %NUMBER_OF_PROCESSORS%')
+    elif sys.platform.startswith('msys'):
+        stream = os.popen('echo %NUMBER_OF_PROCESSORS%')
+    elif sys.platform.startswith('darwin'):
+        stream = os.popen('sysctl -n hw.ncpu')
 
-	output = stream.read()
-	NUM_CORES = int(output[:len(output) - 1])
+    output = stream.read()
+    NUM_CORES = int(output[:len(output) - 1])
 
-global emp_count, game_tick
+global EMP_COUNT, GAME_TICK
 
 noise_vals = []
 emp_arr = []
 hex_arr = []
-emp_count = 1
-game_tick = 1
+EMP_COUNT = 1
+GAME_TICK = 1
+
 
 class Empire:
+	'''
+		empire class
+	'''
 	def __init__(self, name, capital, color, economy=100):
-		global emp_count
+		'''
+			initiator for empire class
+		'''
+		global EMP_COUNT
 
 		self.name = name
 		self.capital = capital
@@ -89,7 +100,7 @@ class Empire:
 		self.border_count = 0
 		self.age = 0
 
-		emp_count += 1
+		EMP_COUNT += 1
 		annex_tile(self, capital)
 		#self.capital.set_color((0, 0, 0))
 		self.capital.make_capital()
@@ -100,8 +111,15 @@ class Empire:
 		for border_emp in self.border_emps:
 			recalc_border_emps(border_emp)
 
+
 class Hex:
+	'''
+		Hex class
+	'''
 	def __init__(self, win, x, y):
+		'''
+			hex class initiator
+		'''
 		self.win = win
 		self.x = x
 		self.y = y
@@ -114,6 +132,9 @@ class Hex:
 		draw_hex_at_coord(self.win, self.x, self.y, self.color)
 
 	def set_color(self, color):
+		'''
+			set color method
+		'''
 		self.color = color
 		draw_hex_at_coord(self.win, self.x, self.y, self.color)
 
@@ -124,7 +145,7 @@ class DiploObject:
 	def __init__(self, target, kind, rebel=None, special=0, aggressor=None):
 		self.target = target
 		self.type = kind # 0 is a war declartion, 1 is a peace deal
-		self.tick = game_tick
+		self.tick = GAME_TICK
 		self.rebel = rebel
 		self.special = special # 0 is not special, 1 is retribution conflict
 		self.aggressor = aggressor
@@ -133,7 +154,7 @@ def draw_hex(screen, color, x, y, sWidth=10, width=0):
 	factor_1 = math.floor(SQRT_3 * sWidth / 2)
 	factor_2 = math.floor(sWidth * 0.5)
 	pygame.draw.polygon(screen, color, [[x - sWidth, y], [x - factor_2, y - factor_1], [x + factor_2, y - factor_1], [x + sWidth, y], [x + factor_2, y + factor_1], [x - factor_2, y + factor_1]], width)
-	
+
 def draw_hex_at_coord(screen, x, y, color=(255, 255, 255)):
 	factor_1 = math.floor(1.5 * HEX_WIDTH)
 	factor_2 = math.floor(SQRT_3 * HEX_WIDTH)
@@ -192,15 +213,15 @@ def tiles_connected(tile1, tile2, l=None, i=None):
 	if i == None:
 		i = 0
 	for v in get_surroundings(tile2):
-		if v == tile1: 
-			return True 
+		if v == tile1:
+			return True
 		coords = [v.x, v.y]
 		orig = hex_exists(l[0][0], l[0][1])
 		if not(cpft(l, coords[0], coords[1])) and (is_in_control(tile1.empire, v) or is_in_control(orig.empire, v)):
 			l.append([coords[0], coords[1], i])
-	if len(l) <= i: 
+	if len(l) <= i:
 		return False
-	
+
 	return tiles_connected(tile1, hex_exists(l[i][0], l[i][1]), l, i + 1)
 
 def hex_exists(x, y):
@@ -286,7 +307,7 @@ def fragment_empire(emp, conqueror):
 		tiles.pop(rand_loc)
 
 		new_empires = []
-		
+
 		rand_hexes = get_surroundings(rand_hex)
 		for rand in rand_hexes:
 			if get_key_from_value(tiles, rand) != -1:
@@ -303,7 +324,7 @@ def fragment_empire(emp, conqueror):
 				rand_hexes.pop(get_key_from_value(rand_hexes, rand))
 
 		if len(rand_hexes) > 9 or len(get_empire_tiles(emp)) < 10:
-			new_empire = Empire("Empire %d" % (emp_count), rand_hex, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
+			new_empire = Empire("Empire %d" % (EMP_COUNT), rand_hex, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
 
 			new_empires.append(new_empire)
 			for rand in rand_hexes:
@@ -336,7 +357,7 @@ def partition_empire(emp, conqueror):
 		if hexagon.empire == emp:
 			if hexagon.occupier is None:
 				tiles = get_cluster(hexagon)
-				new_emp = Empire("Empire %d" % (emp_count), hexagon, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
+				new_emp = Empire("Empire %d" % (EMP_COUNT), hexagon, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
 				for tile in tiles:
 					if tile != new_emp.capital:
 						annex_tile(new_emp, tile)
@@ -428,8 +449,8 @@ def declare_war(initiator, target, special=0, aggressor=None):
 	target.war_targets.append(target_war_dec)
 
 def rebel(emp, tile):
-	rebel_emp = Empire("Empire %d" % (emp_count), tile, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)), round(emp.economy * 0.6))
-	
+	rebel_emp = Empire("Empire %d" % (EMP_COUNT), tile, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)), round(emp.economy * 0.6))
+
 	for surr_hex in get_surroundings(tile):
 		if surr_hex.color[0] != 0 or surr_hex.color[1] != 0 or surr_hex.color[2] != 0:
 			annex_tile(rebel_emp, surr_hex)
@@ -466,7 +487,7 @@ def make_peace(emp1, emp2):
 		elif hexagon.empire == emp1 and hexagon.occupier is None and get_key_from_value(c1, hexagon) == -1 and not is_delayed(hexagon):
 			c3 = get_cluster(hexagon)
 			if len(c3) > 10 and not tiles_connected(hexagon, emp1.capital):
-				new_emp = Empire("Empire %d" % (emp_count), hexagon, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
+				new_emp = Empire("Empire %d" % (EMP_COUNT), hexagon, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
 				for tile in c3:
 					if tile != new_emp.capital:
 						delayed_annex_tile(new_emp, tile)
@@ -482,7 +503,7 @@ def make_peace(emp1, emp2):
 		elif hexagon.empire == emp2 and hexagon.occupier is None and get_key_from_value(c2, hexagon) == -1 and not is_delayed(hexagon):
 			c3 = get_cluster(hexagon)
 			if len(c3) > 10 and not tiles_connected(hexagon, emp2.capital):
-				new_emp = Empire("Empire %d" % (emp_count), hexagon, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
+				new_emp = Empire("Empire %d" % (EMP_COUNT), hexagon, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
 				for tile in c3:
 					if tile != new_emp.capital:
 						delayed_annex_tile(new_emp, tile)
@@ -495,7 +516,7 @@ def make_peace(emp1, emp2):
 						print("There's been a screw up; Hex info: (%d, %d) E: (%s) O: (%s) P:(%s, %s) (2)" % (hexagon.x, hexagon.y, hexagon.empire.name, hexagon.occupier, emp1.name, emp2.name))
 					elif tile.occupier is None and tile.empire == emp2:
 						delayed_annex_tile(emp1, tile)
-	
+
 	correct_delayed()
 
 	checked_emps = [emp1, emp2]
@@ -622,7 +643,7 @@ def for_each_empire(emp):
 	tiles = get_empire_tiles(emp)
 
 	#print(emp.economy)
-	
+
 	#border_emps = []
 	deltaE = math.floor((2.5 * len(tiles) + (len(tiles) < 20 and 250 or (250 + -0.55 * ((len(tiles) - 20) ** 1.3)))/3) / (len(emp.war_targets) + 1))
 	deltaS = 1.0 - (len(tiles) + 1) * 0.02
@@ -690,7 +711,7 @@ def for_each_empire(emp):
 
 	if len(emp.war_targets) != 0:
 		for war in emp.war_targets:
-			if random.randint(0, game_tick - war.tick) > 25:
+			if random.randint(0, GAME_TICK - war.tick) > 25:
 				print("%s has made peace with %s" % (emp.name, war.target.name))
 				make_peace(emp, war.target)
 				break
@@ -735,7 +756,7 @@ def for_each_empire(emp):
 												already_at_war = True
 												target.special = 1
 												target.aggressor = emp
-										if not already_at_war:	
+										if not already_at_war:
 											declare_war(border_emp, emp, 1, emp)
 
 	else:
@@ -767,9 +788,9 @@ def for_each_empire(emp):
 					print("Sea invasion happening by %s on %s!" % (emp.name, target.name))
 					sea_invasion(emp, target)
 					break
-	
+
 	for i in reversed(range(len(emp.peace_deals))):
-		if game_tick - emp.peace_deals[i].tick >= PEACE_DURATION:
+		if GAME_TICK - emp.peace_deals[i].tick >= PEACE_DURATION:
 			print("Peace deal between %s and %s has expired" % (emp.name, emp.peace_deals[i].target.name))
 			emp.peace_deals.pop(i)
 
@@ -779,29 +800,33 @@ def for_each_empire(emp):
 
 	emp.age += 1
 
+
 def fix_things():
-	for hexagon in hex_arr:
-		if not(hexagon.empire is None) and hexagon.empire == hexagon.occupier:
-			hexagon.occupier = None
-			hexagon.new_occupier = None
-			hexagon.set_color(hexagon.empire.color)
-		elif not(hexagon.empire is None) and not(hexagon.occupier is None) and len(hexagon.empire.war_targets) == 0:
-			print("THIS just happened")
-			print(hexagon.empire.name)
-			print(hexagon.occupier.name)
-			print(get_key_from_value(hexagon.empire.war_targets, hexagon.occupier))
-			print(get_key_from_value(hexagon.occupier.war_targets, hexagon.empire))
-			hexagon.occupier = None
-			hexagon.new_occupier = None
-			hexagon.set_color(hexagon.empire.color)
-	for emp in emp_arr:
-		if len(get_empire_tiles(emp)) == 0:
-			print("FOR some reason, %s wasn't deleted... deleting now" % (emp.name))
-			emp_arr.pop(get_key_from_value(emp_arr, emp))
+    '''
+        a fixer upper method
+    '''
+    for hexagon in hex_arr:
+        if not(hexagon.empire is None) and hexagon.empire == hexagon.occupier:
+            hexagon.occupier = None
+            hexagon.new_occupier = None
+            hexagon.set_color(hexagon.empire.color)
+        elif not(hexagon.empire is None) and not(hexagon.occupier is None) and len(hexagon.empire.war_targets) == 0:
+            print("THIS just happened")
+            print(hexagon.empire.name)
+            print(hexagon.occupier.name)
+            print(get_key_from_value(hexagon.empire.war_targets, hexagon.occupier))
+            print(get_key_from_value(hexagon.occupier.war_targets, hexagon.empire))
+            hexagon.occupier = None
+            hexagon.new_occupier = None
+            hexagon.set_color(hexagon.empire.color)
+    for emp in emp_arr:
+        if len(get_empire_tiles(emp)) == 0:
+            print("FOR some reason, %s wasn't deleted... deleting now" % (emp.name))
+            emp_arr.pop(get_key_from_value(emp_arr, emp))
 
 
 def tick(win):
-	global game_tick
+	global GAME_TICK
 
 	for hexagon in hex_arr:
 		if hexagon.change_color and not (hexagon.empire is None):
@@ -823,18 +848,18 @@ def tick(win):
 		if result == False:
 			return False
 
-	if game_tick % 10 == 0:
+	if GAME_TICK % 10 == 0:
 		fix_things()
 		rand_x = random.randint(0, DIMENSIONS[0])
 		rand_y = random.randint(0, DIMENSIONS[1])
 		rand_hex = hex_exists(rand_x, rand_y)
 		if not(rand_hex is None) and rand_hex.empire is None:
-			print("Empire %d has spawned randomly!" % (emp_count))
-			Empire("Empire %d" % (emp_count), rand_hex, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
+			print("Empire %d has spawned randomly!" % (EMP_COUNT))
+			Empire("Empire %d" % (EMP_COUNT), rand_hex, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
 
 
 def startup(win):
-	global emp_count
+	global EMP_COUNT
 
 	for i in range(0, DIMENSIONS[0]):
 		noise_vals.append([])
@@ -852,40 +877,47 @@ def startup(win):
 			rand_y = random.randint(0, DIMENSIONS[1])
 			rand_hex = hex_exists(rand_x, rand_y)
 			if not (rand_hex is None):
-				Empire("Empire %d" % (emp_count), rand_hex, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
+				Empire("Empire %d" % (EMP_COUNT), rand_hex, (random.randint(15, 85), random.randint(15, 85), random.randint(15, 85)))
 				break
 
+
 def main():
-	if GAME_BOUND[0] + GAME_BOUND[2] > WINDOW_BOUND[0] or GAME_BOUND[1] + GAME_BOUND[3] > WINDOW_BOUND[1]:
-		raise Exception("Game Error: Game bounding box is bigger than window bounding box")
-	
-	pygame.init()
+    '''
+        this is the main routine
+    '''
+    if GAME_BOUND[0] + GAME_BOUND[2] > WINDOW_BOUND[0] or \
+       GAME_BOUND[1] + GAME_BOUND[3] > WINDOW_BOUND[1]:
+        raise Exception(ERROR_MESSAGE_001)
+    pygame.init()
+    win = pygame.display.set_mode((WINDOW_BOUND[0], WINDOW_BOUND[1]))
+    pygame.display.set_caption("Civilisation")
+    icon = pygame.image.load('icon.png')
+    # We use set_icon to set new icon
+    pygame.display.set_icon(icon)
+    win.fill((0, 15, 55))
 
-	win = pygame.display.set_mode((WINDOW_BOUND[0], WINDOW_BOUND[1]))
-	pygame.display.set_caption("hello")
-	win.fill((0, 15, 55))
+    clock = pygame.time.Clock()
+    global GAME_TICK
+    global EMP_COUNT
 
-	clock = pygame.time.Clock()
+    startup(win)
 
-	global game_tick
-	global emp_count
+    result = True
+    year = 0
+    while True:
+        print("Year : ", year)
+        for empire_event in pygame.event.get():
+            if empire_event.type == pygame.QUIT:
+                return
 
-	startup(win)
+        if result is not False:
+            result = tick(win)
+        GAME_TICK += 1
+        clock.tick(5)
+        year += 1
+        pygame.display.update()
 
-	result = True
-	
-	while True:
-		for e in pygame.event.get():
-			if e.type == pygame.QUIT:
-				return
-
-		if not (result == False):
-			result = tick(win)
-		game_tick += 1
-		clock.tick(5)
-
-		pygame.display.update()
 
 if __name__ == '__main__':
-	main()
-	pygame.quit()
+    main()
+    pygame.quit()

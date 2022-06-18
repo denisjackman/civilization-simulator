@@ -1,5 +1,5 @@
 # Civilization Simulator (civ)
-A Civilization Simulator coded in Python (pygame) and Java.
+A Civilization Simulator coded in Python (pygame).
 
 ![output](https://user-images.githubusercontent.com/16968917/159137594-78944715-3e5c-48d7-a401-6cd51ac3bc7b.gif)
 
@@ -48,13 +48,4 @@ pip install noise
 
 ```bash
 python3 civ.py
-```
-
-## Java
-
-1. Navigate to the Java folder
-2. No imports are necessary other than the standard Java libraries:
-
-```bash
-java Main
 ```
